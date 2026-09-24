@@ -1,0 +1,4 @@
+{
+  "values": {"patient": {"label": "sensitive", "text": "example only"}},
+  "actions": [{"send": "hospital-model", "value": "patient", "grant": "g1"}]
+}

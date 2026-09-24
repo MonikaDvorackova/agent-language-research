@@ -1,0 +1,4 @@
+{
+  "recipients": ["hospital-model", "other-model"],
+  "grants": {"g1": {"recipient": "hospital-model", "value": "patient"}}
+}
