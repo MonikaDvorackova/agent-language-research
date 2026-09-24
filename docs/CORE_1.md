@@ -1,0 +1,11 @@
+# Core 1: host-owned labels and exact-input binding
+
+24 September 2026. Core 1 remains a research model. Its JSON program has only `version` and `actions`; it cannot declare values, sensitivity labels, recipients or grants. A *separate host manifest* provides labeled inputs, a recipient inventory and recipient-and-input-specific grants. See `examples/core1-program.json` and `examples/core1-host.json`.
+
+The checker parses both documents strictly and returns a three-valued verdict plus SHA-256 digests over canonicalized program and manifest JSON. An invalid or unsupported syntax raises `ValueError`. An opaque effect or unresolved recipient returns UNKNOWN. A known sensitive send with a missing or mismatched grant returns VIOLATED. All modeled sends with matching grants return **conditional** PROVED. The `simulate` function checks both inputs again before returning simulated sends; a changed program or host manifest invalidates the old analysis. These digests are identifiers, not signatures or proof certificates.
+
+This specifically removes Core 0's ability for *source code* to label a host-supplied input as public or create its own grant. It **does not** establish that the host label is truthful, that the manifest is authenticated, that an attacker cannot edit host state, or that any external effect must pass through this checker. The Python module is directly importable, and arbitrary Python code may use networking and the filesystem. A test deliberately demonstrates PROVED for a lying host manifest that marks sensitive content public. `simulate` itself does not contact a model and it can replay a grant without restriction. Even if a future runtime confines effects, grants must be bound to the intended purpose and their issuance reviewed independently.
+
+Run from the repository root: `python -m unittest discover -s tests -v`. The tests exercise both Core 0 and Core 1. Core 1 is versioned separately rather than silently changing Core 0's input semantics.
+
+Next experiment: define a small-step semantics for source values and effect transitions; then implement a truly confined host that obtains labels from the data source and controls every external channel. Compare the same adversarial corpus in a compiled existing language. Syntax and productization remain outside the current evidence.

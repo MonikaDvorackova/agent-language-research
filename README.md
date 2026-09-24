@@ -10,3 +10,5 @@ python -m unittest discover -s tests -v
 ```
 
 Historical evidence and the original Python analyzer are in [static-agent-verification-experiment](https://github.com/MonikaDvorackova/static-agent-verification-experiment); this repository imports no code from it. The next milestone is a closed effect host and a compiled comparison with an existing typed language, not premature syntax design.
+
+[Core 1](docs/CORE_1.md) moves labels and grants out of program source into a separate host manifest and binds an analysis to canonical input digests. This narrows one source-forgery path but does not authenticate the host, confine Python, or establish a proof certificate.

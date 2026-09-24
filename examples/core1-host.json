@@ -1,0 +1,1 @@
+{"version": 1, "inputs": {"patient": {"label": "sensitive", "text": "example only"}}, "recipients": ["hospital-model"], "grants": {"g1": {"recipient": "hospital-model", "input": "patient"}}}
