@@ -33,8 +33,22 @@ def _string(value: object, label: str) -> str:
 
 def compile_source(source: str, host_manifest: str) -> Compilation:
     """Reject malformed source; return three-valued results for valid source."""
-    program = _object(json.loads(source), {"values", "actions"}, "program")
-    manifest = _object(json.loads(host_manifest), {"recipients", "grants"}, "host manifest")
+    def parse(raw: str) -> object:
+        def unique(pairs: list[tuple[str, object]]) -> dict:
+            result = {}
+            for key, value in pairs:
+                if key in result:
+                    raise ValueError(f"duplicate JSON key: {key}")
+                result[key] = value
+            return result
+
+        def invalid_constant(value: str):
+            raise ValueError(f"non-finite JSON constant: {value}")
+
+        return json.loads(raw, object_pairs_hook=unique, parse_constant=invalid_constant)
+
+    program = _object(parse(source), {"values", "actions"}, "program")
+    manifest = _object(parse(host_manifest), {"recipients", "grants"}, "host manifest")
     recipients_raw = manifest["recipients"]
     if not isinstance(recipients_raw, list) or any(not isinstance(x, str) or not x for x in recipients_raw):
         raise ValueError("host recipients: expected strings")

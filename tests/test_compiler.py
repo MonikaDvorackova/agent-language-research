@@ -45,6 +45,10 @@ class CoreTests(unittest.TestCase):
                    "actions": [{"send": "model-b", "value": "secret", "grant": "g"}]}
         self.assertEqual(compile_case(program).verdict, Verdict.PROVED)
 
+    def test_duplicate_json_keys_rejected(self):
+        with self.assertRaisesRegex(ValueError, "duplicate JSON key"):
+            compile_source('{"values":{},"values":{},"actions":[]}', json.dumps(HOST))
+
 
 if __name__ == "__main__":
     unittest.main()
