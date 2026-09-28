@@ -148,6 +148,12 @@ static int install_write_restriction(const char *writable_path) {
         return -1;
     }
 
+    if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0) {
+        int nnp_errno = errno;
+        close(ruleset_fd);
+        errno = nnp_errno;
+        return -1;
+    }
     int restrict_result = (int)syscall(__NR_landlock_restrict_self,
                                        ruleset_fd, 0);
     int restrict_errno = errno;
