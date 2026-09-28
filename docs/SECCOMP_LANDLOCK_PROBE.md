@@ -12,7 +12,7 @@ The Landlock ruleset handles filesystem write, create, remove, rename/link, and 
 
 ## Result in this environment
 
-On the current Linux x86_64 execution container, `landlock_create_ruleset(NULL, 0, LANDLOCK_CREATE_RULESET_VERSION)` returns `-1` with `errno=ENOSYS` (38). The C launcher reports `install Landlock write restriction: Function not implemented`; its headers define the Landlock interface, but the running environment does not expose the syscall to this process. The combined test therefore skips its positive assertions here. The separate seccomp socket-denial test still passes.
+On the current Linux x86_64 execution container, `landlock_create_ruleset(NULL, 0, LANDLOCK_CREATE_RULESET_VERSION)` returns `-1` with `errno=ENOSYS` (38). The C launcher reports `install Landlock write restriction failed: errno=38`; its headers define the Landlock interface, but the running environment does not expose the syscall to this process. The combined test therefore skips its positive assertions here. The separate seccomp socket-denial test still passes.
 
 This is an unavailable experiment, not a failed Landlock policy and not a successful filesystem confinement result. `python -m unittest discover -s tests -q` collects 66 tests; 65 pass and the combined positive test skips because of `ENOSYS`.
 
