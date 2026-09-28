@@ -12,7 +12,8 @@
 - A process-boundary probe confirms that a separate unconfined Python child can reach a local effect endpoint without using the host broker. Network namespace creation is denied in the current container, so isolation itself could not be tested.
 - A seccomp-BPF launcher blocks socket creation in a Python child while leaving stdin/stdout pipes available. This tests one syscall class only; filesystem and other effects remain open, and kernel documentation explicitly says seccomp filtering alone is not a sandbox.
 - The same launcher has an optional Landlock write restriction and a combined probe. Landlock syscall discovery returns `ENOSYS` in this container, despite the kernel headers being present, so the positive filesystem restriction test is skipped; no filesystem isolation result is claimed.
-- Sixty-six local unit tests are collected, including grant and flow cases, thirteen Python AST baseline cases, broker allow/deny, subprocess bypass, the Linux seccomp probe, and the combined seccomp/Landlock probe. Sixty-five pass and the Landlock positive probe is skipped in this environment.
+- Descriptor probes confirm that the launcher closes an inherited socket above fd 2, but a socket deliberately wired to stdout remains writable. This makes the trusted host's stdio wiring an explicit part of the mediation assumption.
+- Sixty-eight local unit tests are collected, including grant and flow cases, thirteen Python AST baseline cases, broker allow/deny, subprocess bypass, seccomp, descriptor-boundary, and combined seccomp/Landlock probes. Sixty-seven pass and the Landlock positive probe is skipped in this environment.
 - An independent ordinary Python API enforces the same recipient check for calls that go through it. Other effect paths bypass it. Core 1 has the same mediation dependency; it has not shown a stronger guarantee than the baseline.
 
 ## Findings that constrain future claims
