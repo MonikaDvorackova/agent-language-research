@@ -11,7 +11,8 @@
 - A bounded Python AST baseline implements the same explicit-flow, alias, concatenation, branch, and authorization rules. It returns UNKNOWN for unresolved/dynamic constructs and does not claim arbitrary-Python soundness.
 - A process-boundary probe confirms that a separate unconfined Python child can reach a local effect endpoint without using the host broker. Network namespace creation is denied in the current container, so isolation itself could not be tested.
 - A seccomp-BPF launcher blocks socket creation in a Python child while leaving stdin/stdout pipes available. This tests one syscall class only; filesystem and other effects remain open, and kernel documentation explicitly says seccomp filtering alone is not a sandbox.
-- Sixty-five local unit tests pass, including grant and flow cases, thirteen Python AST baseline cases, broker allow/deny, subprocess bypass, and the Linux seccomp probe.
+- The same launcher has an optional Landlock write restriction and a combined probe. Landlock syscall discovery returns `ENOSYS` in this container, despite the kernel headers being present, so the positive filesystem restriction test is skipped; no filesystem isolation result is claimed.
+- Sixty-six local unit tests are collected, including grant and flow cases, thirteen Python AST baseline cases, broker allow/deny, subprocess bypass, the Linux seccomp probe, and the combined seccomp/Landlock probe. Sixty-five pass and the Landlock positive probe is skipped in this environment.
 - An independent ordinary Python API enforces the same recipient check for calls that go through it. Other effect paths bypass it. Core 1 has the same mediation dependency; it has not shown a stronger guarantee than the baseline.
 
 ## Findings that constrain future claims
@@ -21,6 +22,8 @@ The bounded Python AST experiment reproduces the narrow policy without a new lan
 The process experiment shows that complete mediation is an operating-system and deployment property. A separate process without namespace confinement remains able to perform a direct socket effect. This is a counterexample to treating a broker wrapper or subprocess as a security boundary; it does not show that a suitably confined runtime is impossible.
 
 The seccomp probe demonstrates an existing host-side mechanism to block the tested socket path while preserving pipe IPC. This weakens any claim that new language syntax is necessary to forbid direct network syscalls. Complete effect mediation remains unproved because the child retains filesystem and other system effects.
+
+The follow-up attempted to pair seccomp with Landlock filesystem write restrictions. The current execution environment reports `ENOSYS` for `landlock_create_ruleset`, so the combined positive result could not be tested. This is an environment limitation, not evidence that Landlock itself is unavailable on Linux generally. The launcher and conditional test are retained so a Landlock-enabled host can produce the missing measurement.
 
 Replaying an analyzed program is still accepted. The effect list returned by `simulate` is data, not an executed network or payment operation. The host manifest may lie about a value's sensitivity. The HMAC key can be read if an adversary shares its Python process and privileges. No operating-system confinement, complete effect inventory, authenticated reviewer, formal soundness proof, or comparison against a compiled safe language exists here. `PROVED` must always be read with the three printed host assumptions.
 

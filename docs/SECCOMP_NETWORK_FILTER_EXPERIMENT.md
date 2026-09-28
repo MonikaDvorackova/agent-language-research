@@ -4,7 +4,7 @@ The network-namespace experiment could not run in this container (`bwrap --unsha
 
 ## Reproducible result
 
-`experiments/process_boundary/seccomp_no_network.c` sets `no_new_privs`, closes inherited file descriptors above standard input/output/error, installs an architecture-checked syscall filter, and executes its target. The filter returns `EPERM` for socket creation and common network syscalls, and denies io_uring setup/entry/registration and selected cross-process memory/ptrace syscalls. The test launches a Python child that reads one line from stdin, writes a response to stdout, and attempts `socket.socket(AF_INET, SOCK_STREAM)`.
+`experiments/process_boundary/seccomp_no_network.c` sets `no_new_privs`, closes inherited file descriptors above standard input/output/error, installs an architecture-checked syscall filter, and executes its target. The filter returns `EPERM` for socket creation and common network syscalls, and denies io_uring setup/entry/registration and selected cross-process memory/ptrace syscalls. The test launches a Python child that reads one line from stdin, writes a response to stdout, and attempts `socket.socket(AF_INET, SOCK_STREAM)`. The launcher also has an optional `--writable-dir PATH` mode which applies the narrow Landlock write policy described in [the follow-up probe](SECCOMP_LANDLOCK_PROBE.md).
 
 Observed in this Linux x86_64 container:
 

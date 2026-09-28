@@ -26,3 +26,5 @@ The [Core 1 semantics](docs/CORE_1_SEMANTICS.md) list the exact assumptions and 
 [The process-boundary experiment](docs/PROCESS_BOUNDARY_EXPERIMENT.md) shows that a separate Python subprocess can bypass a broker through a raw loopback socket. Network namespace isolation was unavailable in this execution container, so complete mediation remains unproved.
 
 [A narrower seccomp probe](docs/SECCOMP_NETWORK_FILTER_EXPERIMENT.md) blocks socket syscalls in a child while preserving its stdin/stdout broker pipe. It is one OS-level restriction, not a sandbox or a complete mediation proof.
+
+[A seccomp + Landlock probe](docs/SECCOMP_LANDLOCK_PROBE.md) attempts to limit writes to a workspace. The current execution container returns `ENOSYS` for Landlock, so the positive filesystem restriction test is skipped here and no filesystem isolation result is claimed.
