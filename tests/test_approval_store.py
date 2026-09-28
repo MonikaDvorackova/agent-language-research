@@ -130,6 +130,25 @@ class ApprovalStoreTests(unittest.TestCase):
             self.receiver.deliver("key", "payment", "invoice-18")
         self.assertEqual(self.receiver.effect_count("key"), 1)
 
+    def test_existing_intent_database_is_migrated_with_pending_delivery_fields(self):
+        legacy_database = Path(self.temporary.name) / "legacy.sqlite3"
+        with sqlite3.connect(legacy_database) as connection:
+            connection.executescript(
+                """CREATE TABLE approvals (
+                       token TEXT PRIMARY KEY, subject TEXT NOT NULL,
+                       action TEXT NOT NULL, payload TEXT NOT NULL,
+                       consumed INTEGER NOT NULL DEFAULT 0
+                   );
+                   CREATE TABLE effect_intents (
+                       token TEXT PRIMARY KEY, subject TEXT NOT NULL,
+                       action TEXT NOT NULL, payload TEXT NOT NULL
+                   );
+                   INSERT INTO approvals VALUES ('old-token', 'agent-a', 'payment', 'invoice-17', 1);
+                   INSERT INTO effect_intents VALUES ('old-token', 'agent-a', 'payment', 'invoice-17');"""
+            )
+        migrated = ApprovalStore(legacy_database)
+        self.assertEqual(migrated.intent_status("old-token"), (False, 0))
+
 
 if __name__ == "__main__":
     unittest.main()
