@@ -73,6 +73,39 @@ class ProcessBoundaryTests(unittest.TestCase):
             self.assertIn("SOCKET_DENIED:1", result.stdout)
             self.assertNotIn("SOCKET_ALLOWED", result.stdout)
 
+    @unittest.skipUnless(sys.platform.startswith("linux") and shutil.which("gcc"),
+                         "combined probe requires Linux and gcc")
+    def test_seccomp_and_landlock_limit_writes_when_landlock_is_available(self):
+        root = Path(__file__).parents[1]
+        launcher_source = root / "experiments" / "process_boundary" / "seccomp_no_network.c"
+        child = root / "experiments" / "process_boundary" / "seccomp_landlock_probe.py"
+        with tempfile.TemporaryDirectory() as temporary:
+            root_dir = Path(temporary)
+            writable_dir = root_dir / "work"
+            outside_dir = root_dir / "outside"
+            writable_dir.mkdir()
+            outside_dir.mkdir()
+            launcher = root_dir / "seccomp-landlock"
+            built = subprocess.run(["gcc", "-O2", "-Wall", "-Wextra", "-Werror",
+                                    "-o", str(launcher), str(launcher_source)],
+                                   capture_output=True, text=True, timeout=20)
+            self.assertEqual(built.returncode, 0, built.stderr)
+            result = subprocess.run(
+                [str(launcher), "--writable-dir", str(writable_dir), "--",
+                 sys.executable, str(child), str(writable_dir),
+                 str(outside_dir / "forbidden.txt")],
+                input="approved broker channel\n", capture_output=True,
+                text=True, timeout=10)
+            if result.returncode == 125 and "errno=38" in result.stderr:
+                self.skipTest("Landlock syscalls are unavailable in this execution environment (ENOSYS)")
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            self.assertIn("PIPE_OK:approved broker channel", result.stdout)
+            self.assertIn("WRITE_ALLOWED", result.stdout)
+            self.assertIn("OUTSIDE_WRITE_DENIED:13", result.stdout)
+            self.assertIn("SOCKET_DENIED:1", result.stdout)
+            self.assertTrue((writable_dir / "inside.txt").exists())
+            self.assertFalse((outside_dir / "forbidden.txt").exists())
+
 
 if __name__ == "__main__":
     unittest.main()
