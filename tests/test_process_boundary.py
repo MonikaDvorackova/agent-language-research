@@ -106,6 +106,69 @@ class ProcessBoundaryTests(unittest.TestCase):
             self.assertTrue((writable_dir / "inside.txt").exists())
             self.assertFalse((outside_dir / "forbidden.txt").exists())
 
+    @unittest.skipUnless(sys.platform.startswith("linux") and shutil.which("gcc"),
+                         "descriptor probes require Linux and gcc")
+    def test_launcher_closes_inherited_socket_descriptors_above_stdio(self):
+        root = Path(__file__).parents[1]
+        launcher_source = root / "experiments" / "process_boundary" / "seccomp_no_network.c"
+        child = root / "experiments" / "process_boundary" / "inherited_fd_probe.py"
+        with tempfile.TemporaryDirectory() as temporary:
+            launcher = Path(temporary) / "seccomp-no-network"
+            built = subprocess.run(["gcc", "-O2", "-Wall", "-Wextra", "-Werror",
+                                    "-o", str(launcher), str(launcher_source)],
+                                   capture_output=True, text=True, timeout=20)
+            self.assertEqual(built.returncode, 0, built.stderr)
+            listener = socket.socket()
+            listener.bind(("127.0.0.1", 0))
+            listener.listen(1)
+            client = socket.create_connection(listener.getsockname())
+            connection, _ = listener.accept()
+            connection.settimeout(0.2)
+            try:
+                result = subprocess.run(
+                    [str(launcher), "--", sys.executable, str(child), str(client.fileno())],
+                    pass_fds=(client.fileno(),), capture_output=True, text=True, timeout=10)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn("INHERITED_FD_BLOCKED:9", result.stdout)
+                with self.assertRaises(socket.timeout):
+                    connection.recv(64)
+            finally:
+                connection.close()
+                client.close()
+                listener.close()
+
+    @unittest.skipUnless(sys.platform.startswith("linux") and shutil.which("gcc"),
+                         "descriptor probes require Linux and gcc")
+    def test_stdio_socket_remains_a_write_channel_by_design(self):
+        root = Path(__file__).parents[1]
+        launcher_source = root / "experiments" / "process_boundary" / "seccomp_no_network.c"
+        child = root / "experiments" / "process_boundary" / "stdio_socket_probe.py"
+        with tempfile.TemporaryDirectory() as temporary:
+            launcher = Path(temporary) / "seccomp-no-network"
+            built = subprocess.run(["gcc", "-O2", "-Wall", "-Wextra", "-Werror",
+                                    "-o", str(launcher), str(launcher_source)],
+                                   capture_output=True, text=True, timeout=20)
+            self.assertEqual(built.returncode, 0, built.stderr)
+            listener = socket.socket()
+            listener.bind(("127.0.0.1", 0))
+            listener.listen(1)
+            client = socket.create_connection(listener.getsockname())
+            connection, _ = listener.accept()
+            connection.settimeout(2)
+            try:
+                result = subprocess.run(
+                    [str(launcher), "--", sys.executable, str(child)],
+                    stdin=subprocess.DEVNULL, stdout=client, stderr=subprocess.PIPE,
+                    text=False, timeout=10)
+                self.assertEqual(result.returncode, 0, result.stderr.decode())
+                client.shutdown(socket.SHUT_WR)
+                received = connection.recv(128)
+                self.assertEqual(received, b"STDIO_SOCKET_BYPASS\n")
+            finally:
+                connection.close()
+                client.close()
+                listener.close()
+
 
 if __name__ == "__main__":
     unittest.main()
