@@ -7,10 +7,13 @@
 #include <errno.h>
 #include <linux/audit.h>
 #include <linux/filter.h>
+#include <linux/landlock.h>
 #include <linux/seccomp.h>
+#include <fcntl.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
 #include <sys/syscall.h>
@@ -99,6 +102,68 @@ static int install_filter(void) {
     return prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &program);
 }
 
+static int install_write_restriction(const char *writable_path) {
+#if defined(__NR_landlock_create_ruleset) && defined(__NR_landlock_add_rule) && \
+    defined(__NR_landlock_restrict_self)
+    int abi = (int)syscall(__NR_landlock_create_ruleset, NULL, 0,
+                           LANDLOCK_CREATE_RULESET_VERSION);
+    if (abi < 1) return -1;
+
+    __u64 handled = LANDLOCK_ACCESS_FS_WRITE_FILE |
+                    LANDLOCK_ACCESS_FS_REMOVE_DIR |
+                    LANDLOCK_ACCESS_FS_REMOVE_FILE |
+                    LANDLOCK_ACCESS_FS_MAKE_CHAR |
+                    LANDLOCK_ACCESS_FS_MAKE_DIR |
+                    LANDLOCK_ACCESS_FS_MAKE_REG |
+                    LANDLOCK_ACCESS_FS_MAKE_SOCK |
+                    LANDLOCK_ACCESS_FS_MAKE_FIFO |
+                    LANDLOCK_ACCESS_FS_MAKE_BLOCK |
+                    LANDLOCK_ACCESS_FS_MAKE_SYM;
+    if (abi >= 2) handled |= LANDLOCK_ACCESS_FS_REFER;
+    if (abi >= 3) handled |= LANDLOCK_ACCESS_FS_TRUNCATE;
+
+    struct landlock_ruleset_attr ruleset_attr = {
+        .handled_access_fs = handled,
+    };
+    int ruleset_fd = (int)syscall(__NR_landlock_create_ruleset,
+                                  &ruleset_attr, sizeof(ruleset_attr), 0);
+    if (ruleset_fd < 0) return -1;
+
+    int directory_fd = open(writable_path, O_PATH | O_CLOEXEC);
+    if (directory_fd < 0) {
+        close(ruleset_fd);
+        return -1;
+    }
+    struct landlock_path_beneath_attr path_attr = {
+        .allowed_access = handled,
+        .parent_fd = directory_fd,
+    };
+    int add_result = (int)syscall(__NR_landlock_add_rule, ruleset_fd,
+                                  LANDLOCK_RULE_PATH_BENEATH, &path_attr, 0);
+    int add_errno = errno;
+    close(directory_fd);
+    if (add_result != 0) {
+        close(ruleset_fd);
+        errno = add_errno;
+        return -1;
+    }
+
+    int restrict_result = (int)syscall(__NR_landlock_restrict_self,
+                                       ruleset_fd, 0);
+    int restrict_errno = errno;
+    close(ruleset_fd);
+    if (restrict_result != 0) {
+        errno = restrict_errno;
+        return -1;
+    }
+    return 0;
+#else
+    (void)writable_path;
+    errno = ENOSYS;
+    return -1;
+#endif
+}
+
 static void close_inherited_fds(void) {
     struct rlimit limit;
     if (getrlimit(RLIMIT_NOFILE, &limit) != 0)
@@ -108,16 +173,26 @@ static void close_inherited_fds(void) {
 }
 
 int main(int argc, char **argv) {
-    if (argc < 3 || argv[1][0] != '-' || argv[1][1] != '-') {
-        fprintf(stderr, "usage: %s -- executable [args...]\n", argv[0]);
+    const char *writable_path = NULL;
+    int command_index = 1;
+    if (argc >= 3 && strcmp(argv[1], "--writable-dir") == 0) {
+        writable_path = argv[2];
+        command_index = 3;
+    }
+    if (argc <= command_index + 1 || strcmp(argv[command_index], "--") != 0) {
+        fprintf(stderr, "usage: %s [--writable-dir PATH] -- executable [args...]\n", argv[0]);
         return 2;
     }
     close_inherited_fds();
+    if (writable_path != NULL && install_write_restriction(writable_path) != 0) {
+        fprintf(stderr, "install Landlock write restriction failed: errno=%d\n", errno);
+        return 125;
+    }
     if (install_filter() != 0) {
         perror("install seccomp network-deny filter");
         return 125;
     }
-    execvp(argv[2], &argv[2]);
+    execvp(argv[command_index + 1], &argv[command_index + 1]);
     perror("execvp");
     return 126;
 }
