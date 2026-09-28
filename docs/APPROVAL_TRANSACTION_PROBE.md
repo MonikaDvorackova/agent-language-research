@@ -13,6 +13,8 @@ The deterministic tests establish that:
 
 The outbox extension retries pending intents. Its fake downstream receiver stores an idempotency key and the effect row in its own SQLite transaction. If the receiver is temporarily unavailable, the intent remains pending. If the receiver commits the effect but its acknowledgment is lost, retrying the same key leaves exactly one effect row and marks the intent delivered. Reusing a key for a different action/payload is rejected.
 
+When opening a database created by the earlier approval-only probe, the store adds the delivery-state columns and treats existing intents as pending.
+
 ## What this does not guarantee
 
 The table is an intent ledger, not a real external action. The fake receiver exercises one outbox/idempotency protocol, but SQLite cannot atomically commit the host's transaction with a real payment, network call, or tool effect. A process may crash after the intent commits but before delivery, or after a downstream service acts but before the host records completion. The tested fake receiver gets one observable effect under retries because it atomically deduplicates by key. This guarantee depends on the real downstream API providing the same durable idempotency contract; this probe does not show that a payment or tool provider does.
