@@ -9,12 +9,15 @@
 - Core 2 extends the inert language with pure sequential concatenation. Its abstract values join confidentiality labels and source origins; no arbitrary expressions or branches run.
 - A separate implicit-flow probe joins sensitive branch guards into a program-counter label and catches an effect whose payload is public. It is explicitly a classical IFC rule, not a Python verifier or novelty claim.
 - A bounded Python AST baseline implements the same explicit-flow, alias, concatenation, branch, and authorization rules. It returns UNKNOWN for unresolved/dynamic constructs and does not claim arbitrary-Python soundness.
-- Sixty-one local unit tests pass, including the grant matrix, confidentiality joins, implicit-flow probe, thirteen Python AST baseline cases, key mismatch, duplicate JSON keys, changed manifest, replay and a deliberately dishonest host label.
+- A process-boundary probe confirms that a separate unconfined Python child can reach a local effect endpoint without using the host broker. Network namespace creation is denied in the current container, so isolation itself could not be tested.
+- Sixty-four local unit tests pass, including grant and flow cases, thirteen Python AST baseline cases, broker allow/deny, and the subprocess bypass.
 - An independent ordinary Python API enforces the same recipient check for calls that go through it. Other effect paths bypass it. Core 1 has the same mediation dependency; it has not shown a stronger guarantee than the baseline.
 
 ## Findings that constrain future claims
 
 The bounded Python AST experiment reproduces the narrow policy without a new language. CodeQL and Pysa already provide substantial Python data-flow/taint analysis frameworks, with documented tradeoffs around call-graph resolution, modeling, false positives and false negatives. No evidence currently shows that new syntax is necessary for these source-to-sink and control-dependence rules.
+
+The process experiment shows that complete mediation is an operating-system and deployment property. A separate process without namespace confinement remains able to perform a direct socket effect. This is a counterexample to treating a broker wrapper or subprocess as a security boundary; it does not show that a suitably confined runtime is impossible.
 
 Replaying an analyzed program is still accepted. The effect list returned by `simulate` is data, not an executed network or payment operation. The host manifest may lie about a value's sensitivity. The HMAC key can be read if an adversary shares its Python process and privileges. No operating-system confinement, complete effect inventory, authenticated reviewer, formal soundness proof, or comparison against a compiled safe language exists here. `PROVED` must always be read with the three printed host assumptions.
 

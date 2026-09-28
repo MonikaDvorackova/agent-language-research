@@ -22,3 +22,5 @@ The [Core 1 semantics](docs/CORE_1_SEMANTICS.md) list the exact assumptions and 
 [An implicit-flow probe](docs/IMPLICIT_FLOW_PROBE.md) separately demonstrates how a sensitive branch can influence a public send. It is a small classical IFC experiment, not a Python verifier or a novelty claim.
 
 [Python AST baseline](docs/PYTHON_AST_BASELINE.md) implements the same bounded explicit and implicit flow rules directly over Python's AST. Its purpose is to test whether a new language is needed for this narrow property; unsupported Python constructs return UNKNOWN.
+
+[The process-boundary experiment](docs/PROCESS_BOUNDARY_EXPERIMENT.md) shows that a separate Python subprocess can bypass a broker through a raw loopback socket. Network namespace isolation was unavailable in this execution container, so complete mediation remains unproved.
