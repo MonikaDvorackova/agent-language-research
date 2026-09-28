@@ -15,6 +15,8 @@ SOCKET_DENIED:1
 
 The existing host can therefore retain a pipe-based request channel while this particular child cannot create a new socket through the filtered syscalls.
 
+The same probe then starts a second Python process with `subprocess` and tries socket creation after `exec`. It also receives `EPERM`. This confirms the filter inheritance path on this host for a normal subprocess launch; the filter does not rely on Python-level wrappers around the first agent process.
+
 ## Descriptor boundary probe
 
 Two local loopback tests make the descriptor assumptions explicit:
