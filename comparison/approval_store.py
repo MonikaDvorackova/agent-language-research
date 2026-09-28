@@ -10,6 +10,7 @@ from dataclasses import dataclass
 import sqlite3
 from pathlib import Path
 from collections.abc import Iterator
+from typing import Protocol
 
 
 class ApprovalDenied(PermissionError):
@@ -22,6 +23,14 @@ class EffectIntent:
     subject: str
     action: str
     payload: str
+
+
+class EffectReceiver(Protocol):
+    def deliver(self, idempotency_key: str, action: str, payload: str) -> None: ...
+
+
+class IdempotencyConflict(ValueError):
+    """A downstream key was reused for a different action or payload."""
 
 
 class ApprovalStore:
@@ -41,10 +50,24 @@ class ApprovalStore:
                     token TEXT PRIMARY KEY REFERENCES approvals(token),
                     subject TEXT NOT NULL,
                     action TEXT NOT NULL,
-                    payload TEXT NOT NULL
+                    payload TEXT NOT NULL,
+                    delivered INTEGER NOT NULL DEFAULT 0 CHECK (delivered IN (0, 1)),
+                    attempts INTEGER NOT NULL DEFAULT 0
                 );
                 """
             )
+            intent_columns = {
+                row[1] for row in connection.execute("PRAGMA table_info(effect_intents)")
+            }
+            if "delivered" not in intent_columns:
+                connection.execute(
+                    "ALTER TABLE effect_intents ADD COLUMN delivered INTEGER NOT NULL "
+                    "DEFAULT 0 CHECK (delivered IN (0, 1))"
+                )
+            if "attempts" not in intent_columns:
+                connection.execute(
+                    "ALTER TABLE effect_intents ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0"
+                )
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.database, timeout=10, isolation_level=None)
@@ -112,3 +135,91 @@ class ApprovalStore:
                 "SELECT consumed FROM approvals WHERE token = ?", (token,)
             ).fetchone()
             return row is not None and bool(row[0])
+
+    def dispatch_pending(self, receiver: EffectReceiver) -> int:
+        """Retry pending intents; receiver must atomically deduplicate the key."""
+        with self._connection() as connection:
+            pending = list(connection.execute(
+                "SELECT token, action, payload FROM effect_intents "
+                "WHERE delivered = 0 ORDER BY token"
+            ))
+
+        delivered_count = 0
+        for token, action, payload in pending:
+            try:
+                receiver.deliver(token, action, payload)
+            except Exception:
+                with self._connection() as connection:
+                    connection.execute("BEGIN IMMEDIATE")
+                    connection.execute(
+                        "UPDATE effect_intents SET attempts = attempts + 1 "
+                        "WHERE token = ? AND delivered = 0", (token,)
+                    )
+                    connection.execute("COMMIT")
+                raise
+
+            with self._connection() as connection:
+                connection.execute("BEGIN IMMEDIATE")
+                updated = connection.execute(
+                    "UPDATE effect_intents SET delivered = 1, attempts = attempts + 1 "
+                    "WHERE token = ? AND delivered = 0", (token,)
+                )
+                connection.execute("COMMIT")
+                delivered_count += updated.rowcount
+        return delivered_count
+
+    def intent_status(self, token: str) -> tuple[bool, int] | None:
+        with self._connection() as connection:
+            row = connection.execute(
+                "SELECT delivered, attempts FROM effect_intents WHERE token = ?",
+                (token,),
+            ).fetchone()
+            return None if row is None else (bool(row[0]), int(row[1]))
+
+
+class SQLiteIdempotentReceiver:
+    """A simulated downstream that commits an effect once per key."""
+
+    def __init__(self, database: str | Path) -> None:
+        self.database = str(database)
+        with self._connection() as connection:
+            connection.execute(
+                """CREATE TABLE IF NOT EXISTS external_effects (
+                       idempotency_key TEXT PRIMARY KEY,
+                       action TEXT NOT NULL,
+                       payload TEXT NOT NULL
+                   )"""
+            )
+
+    @contextmanager
+    def _connection(self) -> Iterator[sqlite3.Connection]:
+        connection = sqlite3.connect(self.database, timeout=10, isolation_level=None)
+        try:
+            yield connection
+        finally:
+            connection.close()
+
+    def deliver(self, idempotency_key: str, action: str, payload: str) -> None:
+        with self._connection() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            existing = connection.execute(
+                "SELECT action, payload FROM external_effects WHERE idempotency_key = ?",
+                (idempotency_key,),
+            ).fetchone()
+            if existing is None:
+                connection.execute(
+                    "INSERT INTO external_effects(idempotency_key, action, payload) "
+                    "VALUES (?, ?, ?)", (idempotency_key, action, payload)
+                )
+            elif existing != (action, payload):
+                raise IdempotencyConflict("key already bound to a different effect")
+            connection.execute("COMMIT")
+
+    def effect_count(self, idempotency_key: str) -> int:
+        with self._connection() as connection:
+            row = connection.execute(
+                "SELECT COUNT(*) FROM external_effects WHERE idempotency_key = ?",
+                (idempotency_key,),
+            ).fetchone()
+            assert row is not None
+            return int(row[0])
