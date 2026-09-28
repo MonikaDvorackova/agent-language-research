@@ -71,6 +71,7 @@ class ProcessBoundaryTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("PIPE_OK:approved broker channel", result.stdout)
             self.assertIn("SOCKET_DENIED:1", result.stdout)
+            self.assertIn("DESCENDANT_SOCKET_DENIED:1", result.stdout)
             self.assertNotIn("SOCKET_ALLOWED", result.stdout)
 
     @unittest.skipUnless(sys.platform.startswith("linux") and shutil.which("gcc"),
