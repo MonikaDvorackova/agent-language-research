@@ -1,0 +1,80 @@
+from __future__ import annotations
+
+from concurrent.futures import ThreadPoolExecutor
+import sqlite3
+import tempfile
+import threading
+import unittest
+from pathlib import Path
+
+from comparison.approval_store import ApprovalDenied, ApprovalStore
+
+
+class ApprovalStoreTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.database = Path(self.temporary.name) / "approvals.sqlite3"
+        self.store = ApprovalStore(self.database)
+        self.store.grant("one-use-token", "agent-a", "payment", "invoice-17")
+
+    def tearDown(self):
+        self.temporary.cleanup()
+
+    def test_valid_approval_creates_one_intent_and_replay_is_denied(self):
+        intent = self.store.consume_and_record(
+            "one-use-token", "agent-a", "payment", "invoice-17"
+        )
+        self.assertEqual(intent.action, "payment")
+        self.assertTrue(self.store.is_consumed("one-use-token"))
+        self.assertEqual(self.store.intent_count("one-use-token"), 1)
+        with self.assertRaises(ApprovalDenied):
+            self.store.consume_and_record(
+                "one-use-token", "agent-a", "payment", "invoice-17"
+            )
+        self.assertEqual(self.store.intent_count("one-use-token"), 1)
+
+    def test_mismatched_request_does_not_consume_the_approval(self):
+        with self.assertRaises(ApprovalDenied):
+            self.store.consume_and_record(
+                "one-use-token", "agent-a", "payment", "different-invoice"
+            )
+        self.assertFalse(self.store.is_consumed("one-use-token"))
+        self.assertEqual(self.store.intent_count("one-use-token"), 0)
+        self.store.consume_and_record(
+            "one-use-token", "agent-a", "payment", "invoice-17"
+        )
+
+    def test_concurrent_consumers_create_exactly_one_intent(self):
+        start = threading.Barrier(2)
+
+        def consume() -> str:
+            start.wait(timeout=5)
+            try:
+                self.store.consume_and_record(
+                    "one-use-token", "agent-a", "payment", "invoice-17"
+                )
+                return "accepted"
+            except ApprovalDenied:
+                return "denied"
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(lambda _: consume(), range(2)))
+        self.assertCountEqual(results, ["accepted", "denied"])
+        self.assertEqual(self.store.intent_count("one-use-token"), 1)
+
+    def test_database_abort_rolls_back_consumption_and_intent_together(self):
+        with sqlite3.connect(self.database) as connection:
+            connection.execute(
+                """CREATE TRIGGER reject_intent BEFORE INSERT ON effect_intents
+                   BEGIN SELECT RAISE(ABORT, 'simulated persistence failure'); END"""
+            )
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.store.consume_and_record(
+                "one-use-token", "agent-a", "payment", "invoice-17"
+            )
+        self.assertFalse(self.store.is_consumed("one-use-token"))
+        self.assertEqual(self.store.intent_count("one-use-token"), 0)
+
+
+if __name__ == "__main__":
+    unittest.main()
