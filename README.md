@@ -16,3 +16,5 @@ Historical evidence and the original Python analyzer are in [static-agent-verifi
 The [Core 1 semantics](docs/CORE_1_SEMANTICS.md) list the exact assumptions and a small exhaustive test matrix; an independent ordinary Python API baseline reaches the same narrow authorization check. Core 1 uses a host-secret HMAC over the manifest, because an ordinary digest of its sensitive text could reveal low-entropy data. `simulate` still allows replay and makes no network call.
 
 [Current decision and the next research gates](docs/DECISION_RECORD.md) record the limits of the evidence and the criteria for extending the language.
+
+[Core 2](docs/CORE_2.md) adds a pure `concat` derivation, sensitivity joins and source-origin sets. It rejects unsupported branching and returns UNKNOWN for unresolved sources; it does not execute external sends.

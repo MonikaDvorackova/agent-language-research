@@ -1,0 +1,1 @@
+{"version": 2, "inputs": {"patient": {"label": "sensitive", "text": "example only"}, "prefix": {"label": "public", "text": "Case: "}}, "recipients": ["hospital-model"], "grants": {"g1": {"recipient": "hospital-model", "value": "message"}}}
