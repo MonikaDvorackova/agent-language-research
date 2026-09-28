@@ -7,7 +7,8 @@
 - Core 0 accepts a tiny JSON serialization, returns conditional PROVED/VIOLATED/UNKNOWN, and exposes host assumptions. It is not a human-facing language.
 - Core 1 moves labels and grants to a host manifest and binds the checker result to exact canonical documents. A host-secret HMAC avoids publishing a bare digest of sensitive manifest content; this is not an authentication system for the host.
 - Core 2 extends the inert language with pure sequential concatenation. Its abstract values join confidentiality labels and source origins; no arbitrary expressions or branches run.
-- Forty-two local unit tests pass, including a finite eight-case grant matrix, all four two-input confidentiality joins, key mismatch, duplicate JSON keys, changed manifest, replay and a deliberately dishonest host label.
+- A separate implicit-flow probe joins sensitive branch guards into a program-counter label and catches an effect whose payload is public. It is explicitly a classical IFC rule, not a Python verifier or novelty claim.
+- Forty-eight local unit tests pass, including a finite eight-case grant matrix, all four two-input confidentiality joins, six implicit-flow cases, key mismatch, duplicate JSON keys, changed manifest, replay and a deliberately dishonest host label.
 - An independent ordinary Python API enforces the same recipient check for calls that go through it. Other effect paths bypass it. Core 1 has the same mediation dependency; it has not shown a stronger guarantee than the baseline.
 
 ## Findings that constrain future claims
