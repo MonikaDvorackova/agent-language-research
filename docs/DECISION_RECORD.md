@@ -8,10 +8,13 @@
 - Core 1 moves labels and grants to a host manifest and binds the checker result to exact canonical documents. A host-secret HMAC avoids publishing a bare digest of sensitive manifest content; this is not an authentication system for the host.
 - Core 2 extends the inert language with pure sequential concatenation. Its abstract values join confidentiality labels and source origins; no arbitrary expressions or branches run.
 - A separate implicit-flow probe joins sensitive branch guards into a program-counter label and catches an effect whose payload is public. It is explicitly a classical IFC rule, not a Python verifier or novelty claim.
-- Forty-eight local unit tests pass, including a finite eight-case grant matrix, all four two-input confidentiality joins, six implicit-flow cases, key mismatch, duplicate JSON keys, changed manifest, replay and a deliberately dishonest host label.
+- A bounded Python AST baseline implements the same explicit-flow, alias, concatenation, branch, and authorization rules. It returns UNKNOWN for unresolved/dynamic constructs and does not claim arbitrary-Python soundness.
+- Sixty-one local unit tests pass, including the grant matrix, confidentiality joins, implicit-flow probe, thirteen Python AST baseline cases, key mismatch, duplicate JSON keys, changed manifest, replay and a deliberately dishonest host label.
 - An independent ordinary Python API enforces the same recipient check for calls that go through it. Other effect paths bypass it. Core 1 has the same mediation dependency; it has not shown a stronger guarantee than the baseline.
 
 ## Findings that constrain future claims
+
+The bounded Python AST experiment reproduces the narrow policy without a new language. CodeQL and Pysa already provide substantial Python data-flow/taint analysis frameworks, with documented tradeoffs around call-graph resolution, modeling, false positives and false negatives. No evidence currently shows that new syntax is necessary for these source-to-sink and control-dependence rules.
 
 Replaying an analyzed program is still accepted. The effect list returned by `simulate` is data, not an executed network or payment operation. The host manifest may lie about a value's sensitivity. The HMAC key can be read if an adversary shares its Python process and privileges. No operating-system confinement, complete effect inventory, authenticated reviewer, formal soundness proof, or comparison against a compiled safe language exists here. `PROVED` must always be read with the three printed host assumptions.
 
