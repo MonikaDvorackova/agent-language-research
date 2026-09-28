@@ -13,7 +13,8 @@
 - A seccomp-BPF launcher blocks socket creation in a Python child and its subprocess after `exec`, while leaving stdin/stdout pipes available. This tests one syscall class only; filesystem and other effects remain open, and kernel documentation explicitly says seccomp filtering alone is not a sandbox.
 - The same launcher has an optional Landlock write restriction and a combined probe. Landlock syscall discovery returns `ENOSYS` in this container, despite the kernel headers being present, so the positive filesystem restriction test is skipped; no filesystem isolation result is claimed.
 - Descriptor probes confirm that the launcher closes an inherited socket above fd 2, but a socket deliberately wired to stdout remains writable. This makes the trusted host's stdio wiring an explicit part of the mediation assumption.
-- Sixty-eight local unit tests are collected, including grant and flow cases, thirteen Python AST baseline cases, broker allow/deny, subprocess bypass, seccomp, descriptor-boundary, and combined seccomp/Landlock probes. Sixty-seven pass and the Landlock positive probe is skipped in this environment.
+- A SQLite approval probe atomically consumes a request-bound approval and records one effect intent. Replay and concurrent consumption are rejected; an injected database abort rolls back both state changes. It does not perform an external effect or guarantee exactly-once delivery.
+- Seventy-two local unit tests are collected, including grant and flow cases, thirteen Python AST baseline cases, broker allow/deny, subprocess bypass, seccomp, descriptor-boundary, combined seccomp/Landlock, and approval transaction probes. Seventy-one pass and the Landlock positive probe is skipped in this environment.
 - An independent ordinary Python API enforces the same recipient check for calls that go through it. Other effect paths bypass it. Core 1 has the same mediation dependency; it has not shown a stronger guarantee than the baseline.
 
 ## Findings that constrain future claims
@@ -31,7 +32,7 @@ Replaying an analyzed program is still accepted. The effect list returned by `si
 ## Next three research gates
 
 1. Define an executable effect mediator outside the untrusted agent process and test that *all* external channels in that setting pass through it. Explicitly state the operating-system and dependency trust base. Do not call a Python wrapper a sandbox.
-2. Define single-use approval in a durable transactional store, with atomic consume-and-effect or explicitly idempotent downstream operation. Test replay, concurrent use, interrupted execution and recovery. An in-memory set alone cannot establish exactly-once external effects.
+2. Extend the approval intent probe with an idempotent downstream receiver or outbox/reconciliation protocol. The current SQLite transaction tests replay, concurrency and database rollback, but do not test process death or external effect delivery/recovery.
 3. Implement the same property and adversarial tests in a compiled existing language with a constrained effect API. Report the effect coverage, trusted base and ergonomics. Only evidence of a substantial remaining gap warrants distinctive language syntax or a new compiler.
 
 Current recommendation: keep this repo as a narrow language research track while testing these gates. The work is meaningful as an explicit semantics and failure-boundary investigation even if the final useful artifact is a library, compiler plugin, or runtime protocol rather than a new language.
