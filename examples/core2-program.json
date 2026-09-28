@@ -1,0 +1,1 @@
+{"version": 2, "derive": [{"name": "message", "concat": ["prefix", "patient"]}], "actions": [{"send": "hospital-model", "value": "message", "grant": "g1"}]}
