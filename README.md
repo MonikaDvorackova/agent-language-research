@@ -20,3 +20,5 @@ The [Core 1 semantics](docs/CORE_1_SEMANTICS.md) list the exact assumptions and 
 [Core 2](docs/CORE_2.md) adds a pure `concat` derivation, sensitivity joins and source-origin sets. It rejects unsupported branching and returns UNKNOWN for unresolved sources; it does not execute external sends.
 
 [An implicit-flow probe](docs/IMPLICIT_FLOW_PROBE.md) separately demonstrates how a sensitive branch can influence a public send. It is a small classical IFC experiment, not a Python verifier or a novelty claim.
+
+[Python AST baseline](docs/PYTHON_AST_BASELINE.md) implements the same bounded explicit and implicit flow rules directly over Python's AST. Its purpose is to test whether a new language is needed for this narrow property; unsupported Python constructs return UNKNOWN.
