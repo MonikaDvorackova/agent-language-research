@@ -1,6 +1,8 @@
 import socket
+import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import unittest
 from pathlib import Path
@@ -50,6 +52,26 @@ class ProcessBoundaryTests(unittest.TestCase):
         receiver.join(timeout=5)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(received, [b"private"])
+
+    @unittest.skipUnless(sys.platform.startswith("linux") and shutil.which("gcc"),
+                         "seccomp probe requires Linux and gcc")
+    def test_seccomp_launcher_blocks_new_network_sockets_but_keeps_pipe(self):
+        root = Path(__file__).parents[1]
+        launcher_source = root / "experiments" / "process_boundary" / "seccomp_no_network.c"
+        child = root / "experiments" / "process_boundary" / "seccomp_socket_probe.py"
+        with tempfile.TemporaryDirectory() as temporary:
+            launcher = Path(temporary) / "seccomp-no-network"
+            built = subprocess.run(["gcc", "-O2", "-Wall", "-Wextra", "-Werror",
+                                    "-o", str(launcher), str(launcher_source)],
+                                   capture_output=True, text=True, timeout=20)
+            self.assertEqual(built.returncode, 0, built.stderr)
+            result = subprocess.run(
+                [str(launcher), "--", sys.executable, str(child)],
+                input="approved broker channel\n", capture_output=True, text=True, timeout=10)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("PIPE_OK:approved broker channel", result.stdout)
+            self.assertIn("SOCKET_DENIED:1", result.stdout)
+            self.assertNotIn("SOCKET_ALLOWED", result.stdout)
 
 
 if __name__ == "__main__":

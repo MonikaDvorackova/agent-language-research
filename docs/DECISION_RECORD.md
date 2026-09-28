@@ -10,7 +10,8 @@
 - A separate implicit-flow probe joins sensitive branch guards into a program-counter label and catches an effect whose payload is public. It is explicitly a classical IFC rule, not a Python verifier or novelty claim.
 - A bounded Python AST baseline implements the same explicit-flow, alias, concatenation, branch, and authorization rules. It returns UNKNOWN for unresolved/dynamic constructs and does not claim arbitrary-Python soundness.
 - A process-boundary probe confirms that a separate unconfined Python child can reach a local effect endpoint without using the host broker. Network namespace creation is denied in the current container, so isolation itself could not be tested.
-- Sixty-four local unit tests pass, including grant and flow cases, thirteen Python AST baseline cases, broker allow/deny, and the subprocess bypass.
+- A seccomp-BPF launcher blocks socket creation in a Python child while leaving stdin/stdout pipes available. This tests one syscall class only; filesystem and other effects remain open, and kernel documentation explicitly says seccomp filtering alone is not a sandbox.
+- Sixty-five local unit tests pass, including grant and flow cases, thirteen Python AST baseline cases, broker allow/deny, subprocess bypass, and the Linux seccomp probe.
 - An independent ordinary Python API enforces the same recipient check for calls that go through it. Other effect paths bypass it. Core 1 has the same mediation dependency; it has not shown a stronger guarantee than the baseline.
 
 ## Findings that constrain future claims
@@ -18,6 +19,8 @@
 The bounded Python AST experiment reproduces the narrow policy without a new language. CodeQL and Pysa already provide substantial Python data-flow/taint analysis frameworks, with documented tradeoffs around call-graph resolution, modeling, false positives and false negatives. No evidence currently shows that new syntax is necessary for these source-to-sink and control-dependence rules.
 
 The process experiment shows that complete mediation is an operating-system and deployment property. A separate process without namespace confinement remains able to perform a direct socket effect. This is a counterexample to treating a broker wrapper or subprocess as a security boundary; it does not show that a suitably confined runtime is impossible.
+
+The seccomp probe demonstrates an existing host-side mechanism to block the tested socket path while preserving pipe IPC. This weakens any claim that new language syntax is necessary to forbid direct network syscalls. Complete effect mediation remains unproved because the child retains filesystem and other system effects.
 
 Replaying an analyzed program is still accepted. The effect list returned by `simulate` is data, not an executed network or payment operation. The host manifest may lie about a value's sensitivity. The HMAC key can be read if an adversary shares its Python process and privileges. No operating-system confinement, complete effect inventory, authenticated reviewer, formal soundness proof, or comparison against a compiled safe language exists here. `PROVED` must always be read with the three printed host assumptions.
 
