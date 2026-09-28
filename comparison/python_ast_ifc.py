@@ -135,10 +135,14 @@ def analyze_python(source: str, *, grants: frozenset[tuple[str, str]] = frozense
                 unknown.append(f"{where}: unsupported statement {type(statement).__name__}")
 
     block(function.body, _Value(False, frozenset()), function.name)
+    # This baseline cannot establish path feasibility around unknown Python
+    # constructs, so it refuses to label the entire function VIOLATED if any
+    # unresolved construct remains. A separate known violation is retained in
+    # the diagnostic only in future versions; safety classification stays UNKNOWN.
+    if unknown:
+        return AstFinding(Verdict.UNKNOWN, "; ".join(dict.fromkeys(unknown)))
     if violations:
         return AstFinding(Verdict.VIOLATED,
                           "; ".join(message for message, _ in violations),
                           tuple(sorted(set().union(*(set(origins) for _, origins in violations)))))
-    if unknown:
-        return AstFinding(Verdict.UNKNOWN, "; ".join(dict.fromkeys(unknown)))
     return AstFinding(Verdict.PROVED, "no modeled sensitive data or control dependency reaches send")

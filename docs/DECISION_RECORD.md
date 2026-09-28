@@ -9,7 +9,7 @@
 - Core 2 extends the inert language with pure sequential concatenation. Its abstract values join confidentiality labels and source origins; no arbitrary expressions or branches run.
 - A separate implicit-flow probe joins sensitive branch guards into a program-counter label and catches an effect whose payload is public. It is explicitly a classical IFC rule, not a Python verifier or novelty claim.
 - A bounded Python AST baseline implements the same explicit-flow, alias, concatenation, branch, and authorization rules. It returns UNKNOWN for unresolved/dynamic constructs and does not claim arbitrary-Python soundness.
-- Sixty local unit tests pass, including the grant matrix, confidentiality joins, implicit-flow probe, twelve Python AST baseline cases, key mismatch, duplicate JSON keys, changed manifest, replay and a deliberately dishonest host label.
+- Sixty-one local unit tests pass, including the grant matrix, confidentiality joins, implicit-flow probe, thirteen Python AST baseline cases, key mismatch, duplicate JSON keys, changed manifest, replay and a deliberately dishonest host label.
 - An independent ordinary Python API enforces the same recipient check for calls that go through it. Other effect paths bypass it. Core 1 has the same mediation dependency; it has not shown a stronger guarantee than the baseline.
 
 ## Findings that constrain future claims

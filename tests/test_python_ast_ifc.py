@@ -112,6 +112,14 @@ def agent(secret: Sensitive, destination: Public):
 """
         self.assertEqual(analyze_python(source).verdict, Verdict.UNKNOWN)
 
+    def test_unresolved_program_semantics_downgrade_other_findings_to_unknown(self):
+        source = """\
+def agent(secret: Sensitive):
+    send("model", secret)
+    helper()
+"""
+        self.assertEqual(analyze_python(source).verdict, Verdict.UNKNOWN)
+
 
 if __name__ == "__main__":
     unittest.main()
