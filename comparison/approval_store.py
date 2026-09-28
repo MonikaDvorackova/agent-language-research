@@ -56,6 +56,18 @@ class ApprovalStore:
                 );
                 """
             )
+            intent_columns = {
+                row[1] for row in connection.execute("PRAGMA table_info(effect_intents)")
+            }
+            if "delivered" not in intent_columns:
+                connection.execute(
+                    "ALTER TABLE effect_intents ADD COLUMN delivered INTEGER NOT NULL "
+                    "DEFAULT 0 CHECK (delivered IN (0, 1))"
+                )
+            if "attempts" not in intent_columns:
+                connection.execute(
+                    "ALTER TABLE effect_intents ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0"
+                )
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.database, timeout=10, isolation_level=None)
