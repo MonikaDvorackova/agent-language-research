@@ -15,6 +15,7 @@ Results:
 | Separate Python child with direct loopback socket | Reaches the fake external listener without broker mediation |
 | `bwrap --unshare-net ...` in this execution container | Fails: `Creating new namespace failed: Operation not permitted` |
 | `unshare --net true` in this execution container | Fails: `unshare failed: Operation not permitted` |
+| Separate seccomp probe (see next document) | Blocks creation of new sockets but leaves filesystem and other effects available |
 
 The final two results describe this particular container, not Linux generally. Linux network namespaces can isolate networking resources when namespace creation is permitted; see the [network namespaces manual](https://man7.org/linux/man-pages/man7/network_namespaces.7.html) and [Bubblewrap documentation](https://github.com/containers/bubblewrap/blob/main/README.md).
 
@@ -22,7 +23,7 @@ The final two results describe this particular container, not Linux generally. L
 
 The broker's policy is effective only for requests that use the broker. Merely launching arbitrary Python in a subprocess does not remove its direct network path. Therefore this experiment cannot claim complete mediation or a `PROVED` end-to-end security result. For an unrestricted Python agent, the relevant property remains `UNKNOWN` unless the deployment environment independently blocks all unmediated effect channels.
 
-The experiment does **not** implement a sandbox, prevent filesystem/process/IPC effects, restrict inherited credentials, or test a successful network namespace. The inability to create a namespace prevents the positive isolation test here. It would be misleading to infer that a language alone fixes this: an interpreter for a restricted effect language still needs a trusted host and an operating-system boundary that prevents code outside the interpreter from performing effects.
+The experiment does **not** implement a sandbox, prevent filesystem/process/IPC effects, restrict inherited credentials, or test a successful network namespace. The inability to create a namespace prevents the positive namespace-isolation test here. A separate [seccomp syscall-filter probe](SECCOMP_NETWORK_FILTER_EXPERIMENT.md) blocks one raw socket path, but leaves other effect channels open. It would be misleading to infer that a language alone fixes this: an interpreter for a restricted effect language still needs a trusted host and an operating-system boundary that prevents code outside the interpreter from performing unmediated effects.
 
 ## Next experiment
 
