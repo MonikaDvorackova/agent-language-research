@@ -8,7 +8,7 @@ The launcher option is:
 seccomp_no_network --writable-dir WORKSPACE -- python seccomp_landlock_probe.py WORKSPACE OUTSIDE_PATH
 ```
 
-The Landlock ruleset handles filesystem write, create, remove, rename/link, and truncate rights supported by the reported Landlock ABI. It grants those rights only beneath the supplied workspace. Other filesystem rights are not handled by this probe. It composes this policy with the existing seccomp syscall filter and `no_new_privs`; it does not change the process UID/GID or isolate namespaces.
+The Landlock ruleset handles filesystem write, create, remove, rename/link, and truncate rights supported by the reported Landlock ABI. It grants those rights only beneath the supplied workspace. Other filesystem rights are not handled by this probe. Before enforcing the ruleset, the launcher explicitly sets `no_new_privs`, as required for an unprivileged process. It then composes this policy with the existing seccomp syscall filter; it does not change the process UID/GID or isolate namespaces.
 
 ## Result in this environment
 
