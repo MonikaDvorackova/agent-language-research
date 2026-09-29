@@ -1,6 +1,6 @@
 # Decision record: where language research stands
 
-24 September 2026. Scope: an independent experiment about agent programs, separate from AIGov and from the Python static analyzer.
+29 September 2026 (updated from 24 September 2026). Scope: an independent experiment about agent programs, separate from AIGov and from the Python static analyzer. The current prototype phase is closed; see [research closure](RESEARCH_CLOSURE.md).
 
 ## Evidence obtained in this repository
 
@@ -14,7 +14,8 @@
 - The same launcher has an optional Landlock write restriction and a combined probe. Landlock syscall discovery returns `ENOSYS` in this container, despite the kernel headers being present, so the positive filesystem restriction test is skipped; no filesystem isolation result is claimed.
 - Descriptor probes confirm that the launcher closes an inherited socket above fd 2, but a socket deliberately wired to stdout remains writable. This makes the trusted host's stdio wiring an explicit part of the mediation assumption.
 - A SQLite approval/outbox probe atomically consumes a request-bound approval and records one effect intent. Replay and concurrent consumption are rejected; an injected database abort rolls back both state changes. A fake idempotent receiver avoids duplicate effect rows after a simulated lost acknowledgment. This does not test a killed process or a real external provider's idempotency contract.
-- Seventy-six local unit tests are collected, including grant and flow cases, thirteen Python AST baseline cases, broker allow/deny, subprocess bypass, seccomp, descriptor-boundary, combined seccomp/Landlock, and approval/outbox probes. Seventy-five pass and the Landlock positive probe is skipped in this environment.
+- A separate process-kill/restart test now kills a child after the fake receiver commits and before the host records delivery. Reopening both SQLite databases and retrying yields one receiver effect, one delivered intent, and a still-consumed approval. This tests one local failure point, not power loss or a real provider contract.
+- Seventy-seven local unit tests are collected, including grant and flow cases, thirteen Python AST baseline cases, broker allow/deny, subprocess bypass, seccomp, descriptor-boundary, combined seccomp/Landlock, approval/outbox, and crash-recovery probes. Seventy-six pass and the Landlock positive probe is skipped in this environment.
 - An independent ordinary Python API enforces the same recipient check for calls that go through it. Other effect paths bypass it. Core 1 has the same mediation dependency; it has not shown a stronger guarantee than the baseline.
 
 ## Findings that constrain future claims
@@ -27,12 +28,14 @@ The seccomp probe demonstrates an existing host-side mechanism to block the test
 
 The follow-up attempted to pair seccomp with Landlock filesystem write restrictions. The current execution environment reports `ENOSYS` for `landlock_create_ruleset`, so the combined positive result could not be tested. This is an environment limitation, not evidence that Landlock itself is unavailable on Linux generally. The launcher and conditional test are retained so a Landlock-enabled host can produce the missing measurement.
 
-Replaying an analyzed program is still accepted. The effect list returned by `simulate` is data, not an executed network or payment operation. The host manifest may lie about a value's sensitivity. The HMAC key can be read if an adversary shares its Python process and privileges. No operating-system confinement, complete effect inventory, authenticated reviewer, formal soundness proof, or comparison against a compiled safe language exists here. `PROVED` must always be read with the three printed host assumptions.
+Replaying an analyzed program is still accepted. The effect list returned by `simulate` is data, not an executed network or payment operation. The host manifest may lie about a value's sensitivity. The HMAC key can be read if an adversary shares its Python process and privileges. Complete operating-system confinement, complete effect inventory, authenticated reviewer, formal soundness proof, real provider idempotency, and comparison against a compiled existing language do not exist here. `PROVED` must always be read with the three printed host assumptions.
 
-## Next three research gates
+## Closure decision and possible future gates
 
-1. Define an executable effect mediator outside the untrusted agent process and test that *all* external channels in that setting pass through it. Explicitly state the operating-system and dependency trust base. Do not call a Python wrapper a sandbox.
-2. Test the outbox protocol with abrupt process termination/restart and verify the idempotency contract against a real external API. The current fake receiver is SQLite-backed and only establishes the local protocol's behavior.
-3. Implement the same property and adversarial tests in a compiled existing language with a constrained effect API. Report the effect coverage, trusted base and ergonomics. Only evidence of a substantial remaining gap warrants distinctive language syntax or a new compiler.
+No additional implementation is needed to close this bounded prototype phase. If the research is resumed, useful follow-up questions are:
 
-Current recommendation: keep this repo as a narrow language research track while testing these gates. The work is meaningful as an explicit semantics and failure-boundary investigation even if the final useful artifact is a library, compiler plugin, or runtime protocol rather than a new language.
+1. Compare the same narrow property in an existing compiled language with a constrained effect API. Measure effect coverage, trusted base, and developer burden.
+2. Verify a real provider's documented and operational idempotency behavior before integrating any real effect.
+3. Test a production-like OS configuration for complete effect mediation, including filesystem, IPC, descriptors, native extensions, and child processes.
+
+Current recommendation: do not design a new language on this evidence. The prototypes show that the narrow source rules and local approval/retry protocol can be expressed with existing techniques under explicit assumptions. Unresolved complete mediation is chiefly a runtime/OS trust-boundary question. A language proposal needs a measured comparison that identifies a guarantee existing languages and host protocols cannot provide.
